@@ -1,0 +1,6 @@
+@SystemDesignSimple_Ecom_WebAPI_HostAddress = http://localhost:5083
+
+GET {{SystemDesignSimple_Ecom_WebAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
