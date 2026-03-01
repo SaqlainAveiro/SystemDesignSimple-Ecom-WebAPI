@@ -1,27 +1,55 @@
-namespace SystemDesignSimple_Ecom_WebAPI
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using Domain.Entities;
+using Domain.Interfaces;
+using Infrastructure;
+using Infrastructure.Events;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using System.Reflection;
+
+namespace SystemDesignSimple_Ecom_WebAPI;
+
+public class Program
 {
-    public class Program
+    public static void Main(string[] args)
     {
-        public static void Main(string[] args)
+        var builder = WebApplication.CreateBuilder(args);
+
+        // Add services to the container.
+
+        builder.Services.AddControllers();
+
+        builder.Services
+            .Configure<EmailWorkerOptions>(builder.Configuration.GetSection("EmailWorker"));
+
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? 
+            throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+        var migrationAssembly = Assembly.GetExecutingAssembly().FullName;
+
+        builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
+        builder.Host.ConfigureContainer<ContainerBuilder>(container =>
         {
-            var builder = WebApplication.CreateBuilder(args);
+            container.RegisterModule(new WebModule(connectionString, migrationAssembly));
+        });
 
-            // Add services to the container.
+        builder.Services.AddSingleton<IActionContextAccessor, ActionContextAccessor>();
 
-            builder.Services.AddControllers();
+        builder.Services.AddDbContext<EComDbContext>(options =>
+            options.UseSqlServer(connectionString, (x) => x.MigrationsAssembly(migrationAssembly)));
 
-            var app = builder.Build();
+        builder.Services.AddScoped<IEventPublisher, EventPublisher>();
 
-            // Configure the HTTP request pipeline.
+        var app = builder.Build();
 
-            app.UseHttpsRedirection();
+        // Configure the HTTP request pipeline.
 
-            app.UseAuthorization();
+        app.UseHttpsRedirection();
 
+        app.UseAuthorization();
 
-            app.MapControllers();
+        app.MapControllers();
 
-            app.Run();
-        }
+        app.Run();
     }
 }
